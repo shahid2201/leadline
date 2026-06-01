@@ -1,0 +1,4 @@
+tenant_slug,company_name,owner_email,cohort,rollout_percentage,status
+partner-a,Partner A,owner-a@example.com,wave-1,10,pending
+partner-b,Partner B,owner-b@example.com,wave-1,10,pending
+partner-c,Partner C,owner-c@example.com,wave-1,10,pending

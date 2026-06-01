@@ -1,6 +1,6 @@
-# Lead Line Backend - Phases 1 to 6
+# Lead Line Backend - Phases 1 to 7
 
-This repository contains the Phase 1 to Phase 6 foundation for Lead Line:
+This repository contains the Phase 1 to Phase 7 foundation for Lead Line:
 
 - FastAPI backend scaffold
 - Multi-tenant auth middleware (API key or JWT)
@@ -29,8 +29,12 @@ This repository contains the Phase 1 to Phase 6 foundation for Lead Line:
 - Audit logs and PII masking controls for request/security events
 - Encryption controls for persisted integration auth payloads
 - Outage runbooks for AI, messaging, and database degradation
+- Tenant provisioning workflow and design-partner rollout controls
+- Plan limit enforcement for leads, sessions, and messages
+- Layered launch test matrix: unit, integration, contract, e2e, AI regression
+- Staging soak test tooling and rollback/on-call readiness docs
 - Docker local environment
-- CI pipeline (lint + tests)
+- CI pipeline with quality gates and layered test jobs
 
 ## Quick start
 
@@ -60,6 +64,14 @@ This repository contains the Phase 1 to Phase 6 foundation for Lead Line:
 4. Run tests:
 
    pytest
+
+5. Run full launch test layers:
+
+   python scripts/run_test_layers.py
+
+6. Export OpenAPI contract artifact:
+
+   python scripts/export_openapi.py
 
 ## API auth behavior
 
@@ -177,3 +189,31 @@ If SQS queue URLs are not configured, message publishing and worker polling beco
    - Grafana dashboard: `observability/grafana/leadline-dashboard.json`
 - Runbooks:
    - `docs/runbooks.md`
+
+## Phase 7 production readiness and launch
+
+- Admin APIs:
+   - `POST /v1/admin/provision`
+   - `GET /v1/admin/tenants/{tenant_id}/plan-limits`
+   - `POST /v1/admin/design-partners/{tenant_id}/enroll`
+   - `POST /v1/admin/design-partners/{tenant_id}/promote`
+- Plan limits enforced at runtime:
+   - Leads, sessions, and messages creation limits by tenant plan
+- Test layers:
+   - Unit: `pytest -m unit`
+   - Integration: `pytest -m integration`
+   - Contract: `pytest -m contract`
+   - End-to-end: `pytest -m e2e`
+   - AI regression: `pytest -m ai_regression`
+- Launch/operations docs:
+   - `docs/onboarding-kit.md`
+   - `docs/provisioning-workflow.md`
+   - `docs/plan-limits.md`
+   - `docs/staging-soak-test-plan.md`
+   - `docs/rollback-plan.md`
+   - `docs/oncall-readiness.md`
+   - `docs/launch-rollout-plan.md`
+   - `docs/design-partners-template.csv`
+- Launch scripts:
+   - `python scripts/staging_soak.py --token <admin_token>`
+   - `python scripts/rollout_design_partners.py --token <admin_token>`

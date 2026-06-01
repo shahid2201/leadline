@@ -1,0 +1,12 @@
+[
+  "/healthz",
+  "/readyz",
+  "/metrics",
+  "/v1/leads",
+  "/v1/sessions",
+  "/v1/routing/rules",
+  "/v1/sequences",
+  "/v1/integrations/calendar/bookings",
+  "/v1/webhooks/svix",
+  "/v1/admin/provision"
+]

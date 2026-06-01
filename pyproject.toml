@@ -54,6 +54,13 @@ ignore = ["B008"]
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
+markers = [
+  "unit: fast unit tests",
+  "integration: integration tests",
+  "contract: contract and API schema tests",
+  "e2e: end-to-end lifecycle tests",
+  "ai_regression: AI regression test suite",
+]
 
 [tool.mypy]
 python_version = "3.12"

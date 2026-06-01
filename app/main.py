@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 
+from app.api.admin import router as admin_router
 from app.api.auth_debug import router as auth_router
 from app.api.conversations import messages_router
 from app.api.conversations import router as sessions_router
@@ -142,6 +143,7 @@ async def request_logging_middleware(
 app.include_router(health_router)
 app.include_router(metrics_router)
 app.include_router(auth_router, prefix=settings.api_prefix)
+app.include_router(admin_router, prefix=settings.api_prefix)
 app.include_router(leads_router, prefix=settings.api_prefix)
 app.include_router(timeline_router, prefix=settings.api_prefix)
 app.include_router(sessions_router, prefix=settings.api_prefix)

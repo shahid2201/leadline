@@ -10,6 +10,7 @@ from app.observability.metrics import business_kpi_events_total
 from app.observability.tracing import traced_span
 from app.queue.sqs import QueueJob, SQSPublisher
 from app.repositories.lead_repository import LeadRepository, LeadTimelineRepository
+from app.services.plan_limit_service import PlanLimitService
 
 
 def _normalize_email(email: str | None) -> str | None:
@@ -36,6 +37,7 @@ class LeadService:
         self.db = db
         self.leads = LeadRepository(db)
         self.timeline = LeadTimelineRepository(db)
+        self.plan_limits = PlanLimitService(db)
         self.publisher = SQSPublisher()
 
     def _publish_lifecycle(self, tenant_id: str, lead_id: str, event: str) -> None:
@@ -79,6 +81,7 @@ class LeadService:
 
     async def create_lead(self, tenant_id: str, payload: dict[str, Any]) -> LeadCreateOutcome:
         with traced_span("lead.create", {"tenant.id": tenant_id}):
+            await self.plan_limits.enforce_lead_creation_limit(tenant_id)
             payload = dict(payload)
             payload["email"] = _normalize_email(payload.get("email"))
             payload["phone"] = _normalize_phone(payload.get("phone"))

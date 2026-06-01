@@ -6,6 +6,7 @@ from app.models.message import Message
 from app.models.session import Session
 from app.repositories.conversation_repository import MessageRepository, SessionRepository
 from app.repositories.lead_repository import LeadRepository
+from app.services.plan_limit_service import PlanLimitService
 
 
 class ConversationService:
@@ -14,8 +15,10 @@ class ConversationService:
         self.sessions = SessionRepository(db)
         self.messages = MessageRepository(db)
         self.leads = LeadRepository(db)
+        self.plan_limits = PlanLimitService(db)
 
     async def create_session(self, tenant_id: str, payload: dict[str, Any]) -> Session:
+        await self.plan_limits.enforce_session_creation_limit(tenant_id)
         data = dict(payload)
         if "metadata" in data:
             data["session_metadata"] = data.pop("metadata")
@@ -75,6 +78,7 @@ class ConversationService:
         session_id: str,
         payload: dict[str, Any],
     ) -> Message | None:
+        await self.plan_limits.enforce_message_creation_limit(tenant_id)
         session_record = await self.sessions.get(tenant_id=tenant_id, session_id=session_id)
         if not session_record:
             return None
