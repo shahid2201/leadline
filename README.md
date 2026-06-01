@@ -1,6 +1,6 @@
-# Lead Line Backend - Phases 1 to 4
+# Lead Line Backend - Phases 1 to 6
 
-This repository contains the Phase 1 to Phase 4 foundation for Lead Line:
+This repository contains the Phase 1 to Phase 6 foundation for Lead Line:
 
 - FastAPI backend scaffold
 - Multi-tenant auth middleware (API key or JWT)
@@ -18,6 +18,17 @@ This repository contains the Phase 1 to Phase 4 foundation for Lead Line:
 - Sequence CRUD, step management, and enrollment APIs
 - Worker-driven sequence execution with timeline recording
 - SES and Twilio delivery integration adapters
+- HubSpot lead/activity sync integration hooks
+- Google Calendar availability and booking APIs
+- Slack high-intent lead alert integration hooks
+- Svix outbound webhooks and inbound webhook endpoints
+- Webhook signature verification and idempotency event store
+- OpenTelemetry tracing across API, DB, worker, AI, and integrations
+- Prometheus metrics endpoint, Grafana dashboard, and alert rules
+- RBAC enforcement, tenant-aware rate limiting, and tenant header checks
+- Audit logs and PII masking controls for request/security events
+- Encryption controls for persisted integration auth payloads
+- Outage runbooks for AI, messaging, and database degradation
 - Docker local environment
 - CI pipeline (lint + tests)
 
@@ -129,3 +140,40 @@ If SQS queue URLs are not configured, message publishing and worker polling beco
 - Delivery integrations:
    - Amazon SES for email (`SES_FROM_EMAIL`)
    - Twilio for SMS (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_PHONE`)
+
+## Phase 5 integrations and webhooks
+
+- Integration APIs:
+   - `POST /v1/integrations/hubspot/leads/{id}/sync`
+   - `GET /v1/integrations/calendar/availability`
+   - `POST /v1/integrations/calendar/bookings`
+- Inbound webhook APIs:
+   - `POST /v1/webhooks/svix`
+   - `POST /v1/webhooks/hubspot`
+- Integration worker events:
+   - `integration.lead.created`
+   - `integration.lead.updated`
+   - `integration.lead.score_updated`
+   - `integration.timeline.created`
+- Webhook processing stores provider events with idempotency keys and retry status.
+
+## Phase 6 observability and security hardening
+
+- Metrics endpoint:
+   - `GET /metrics`
+- OpenTelemetry:
+   - Configured via `OTEL_ENABLED`, `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`
+   - Request, queue, AI, DB, worker, and integration spans are emitted
+- Security controls:
+   - RBAC admin enforcement on routing/sequences/integrations APIs
+   - Tenant-aware rate limiting (`RATE_LIMIT_PER_MINUTE`)
+   - Tenant header mismatch blocking (`ENFORCE_TENANT_HEADER_MATCH`)
+   - Audit log persistence in `audit_logs`
+   - PII masking for logged/audited metadata
+   - Integration auth payload encryption when `APP_DATA_ENCRYPTION_KEY` is set
+- Dashboards and alerts:
+   - Prometheus config: `observability/prometheus/prometheus.yml`
+   - Alert rules: `observability/prometheus/alert_rules.yml`
+   - Grafana dashboard: `observability/grafana/leadline-dashboard.json`
+- Runbooks:
+   - `docs/runbooks.md`

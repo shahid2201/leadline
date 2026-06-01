@@ -9,6 +9,20 @@ from app.core.config import get_settings
 settings = get_settings()
 
 engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+
+
+def _instrument_engine() -> None:
+    if not settings.otel_enabled:
+        return
+    try:
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+        SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+    except Exception:  # noqa: BLE001
+        return
+
+
+_instrument_engine()
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 

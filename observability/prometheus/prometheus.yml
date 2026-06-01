@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+
+rule_files:
+  - alert_rules.yml
+
+scrape_configs:
+  - job_name: leadline-api
+    static_configs:
+      - targets: ["api:8000"]
+    metrics_path: /metrics
+
+  - job_name: leadline-worker
+    static_configs:
+      - targets: ["worker:8000"]
+    metrics_path: /metrics

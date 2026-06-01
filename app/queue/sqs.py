@@ -7,6 +7,8 @@ import boto3
 from botocore.client import BaseClient
 
 from app.core.config import get_settings
+from app.observability.metrics import queue_publish_total
+from app.observability.tracing import traced_span
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +50,21 @@ class SQSPublisher:
                 "Queue URL not configured; skipping publish",
                 extra={"queue_name": job.queue_name},
             )
+            queue_publish_total.labels(queue_name=job.queue_name, outcome="skipped").inc()
             return False
 
-        client = self._get_client()
-        client.send_message(
-            QueueUrl=queue_url,
-            MessageBody=json.dumps(job.payload),
-        )
+        with traced_span(
+            "queue.publish",
+            {
+                "queue.name": job.queue_name,
+                "queue.url": queue_url,
+            },
+        ):
+            client = self._get_client()
+            client.send_message(
+                QueueUrl=queue_url,
+                MessageBody=json.dumps(job.payload),
+            )
+
+        queue_publish_total.labels(queue_name=job.queue_name, outcome="published").inc()
         return True

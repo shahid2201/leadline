@@ -107,6 +107,16 @@ async def process_message_created_event(payload: dict[str, str]) -> None:
             )
             publisher.publish(
                 QueueJob(
+                    queue_name="integration_jobs",
+                    payload={
+                        "event": "integration.lead.score_updated",
+                        "tenant_id": tenant_id,
+                        "lead_id": session_record.lead_id,
+                    },
+                )
+            )
+            publisher.publish(
+                QueueJob(
                     queue_name="sequence_jobs",
                     payload={
                         "event": "sequence.trigger",

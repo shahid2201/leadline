@@ -1,0 +1,43 @@
+{
+  "title": "LeadLine Phase6",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "title": "API Request Rate",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum(rate(leadline_api_requests_total[5m]))", "legendFormat": "req/s"}
+      ]
+    },
+    {
+      "title": "API 5xx Rate",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum(rate(leadline_api_requests_total{status_code=~\"5..\"}[5m]))", "legendFormat": "5xx/s"}
+      ]
+    },
+    {
+      "title": "Queue Publish Outcomes",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum by (queue_name, outcome) (rate(leadline_queue_publish_total[5m]))", "legendFormat": "{{queue_name}} {{outcome}}"}
+      ]
+    },
+    {
+      "title": "AI Call Outcomes",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum by (outcome) (rate(leadline_ai_calls_total[5m]))", "legendFormat": "{{outcome}}"}
+      ]
+    },
+    {
+      "title": "Business KPI Events",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum by (event) (rate(leadline_business_kpi_events_total[15m]))", "legendFormat": "{{event}}"}
+      ]
+    }
+  ]
+}

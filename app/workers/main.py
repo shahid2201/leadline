@@ -11,6 +11,8 @@ from botocore.client import BaseClient
 from app.ai.pipeline import process_message_created_event
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.integrations.pipeline import process_integration_event
+from app.observability.tracing import configure_tracing, traced_span
 from app.routing.pipeline import process_routing_event
 from app.sequence.pipeline import process_sequence_step_event, process_sequence_trigger_event
 
@@ -36,31 +38,61 @@ def _event_handlers() -> dict[str, Callable[[dict[str, Any]], None]]:
         "lead.score_updated": handle_lead_score_updated,
         "sequence.trigger": handle_sequence_trigger,
         "sequence.step.execute": handle_sequence_step_execute,
+        "integration.lead.created": handle_integration_lead_created,
+        "integration.lead.updated": handle_integration_lead_updated,
+        "integration.lead.score_updated": handle_integration_lead_score_updated,
+        "integration.timeline.created": handle_integration_timeline_created,
     }
 
 
 def handle_message_created(payload: dict[str, Any]) -> None:
-    asyncio.run(process_message_created_event(payload))
+    with traced_span("worker.handle_message_created"):
+        asyncio.run(process_message_created_event(payload))
 
 
 def handle_lead_created(payload: dict[str, Any]) -> None:
-    asyncio.run(process_routing_event(payload))
+    with traced_span("worker.handle_lead_created"):
+        asyncio.run(process_routing_event(payload))
 
 
 def handle_lead_updated(payload: dict[str, Any]) -> None:
-    asyncio.run(process_routing_event(payload))
+    with traced_span("worker.handle_lead_updated"):
+        asyncio.run(process_routing_event(payload))
 
 
 def handle_lead_score_updated(payload: dict[str, Any]) -> None:
-    asyncio.run(process_routing_event(payload))
+    with traced_span("worker.handle_lead_score_updated"):
+        asyncio.run(process_routing_event(payload))
 
 
 def handle_sequence_trigger(payload: dict[str, Any]) -> None:
-    asyncio.run(process_sequence_trigger_event(payload))
+    with traced_span("worker.handle_sequence_trigger"):
+        asyncio.run(process_sequence_trigger_event(payload))
 
 
 def handle_sequence_step_execute(payload: dict[str, Any]) -> None:
-    asyncio.run(process_sequence_step_event(payload))
+    with traced_span("worker.handle_sequence_step_execute"):
+        asyncio.run(process_sequence_step_event(payload))
+
+
+def handle_integration_lead_created(payload: dict[str, Any]) -> None:
+    with traced_span("worker.handle_integration_lead_created"):
+        asyncio.run(process_integration_event(payload))
+
+
+def handle_integration_lead_updated(payload: dict[str, Any]) -> None:
+    with traced_span("worker.handle_integration_lead_updated"):
+        asyncio.run(process_integration_event(payload))
+
+
+def handle_integration_lead_score_updated(payload: dict[str, Any]) -> None:
+    with traced_span("worker.handle_integration_lead_score_updated"):
+        asyncio.run(process_integration_event(payload))
+
+
+def handle_integration_timeline_created(payload: dict[str, Any]) -> None:
+    with traced_span("worker.handle_integration_timeline_created"):
+        asyncio.run(process_integration_event(payload))
 
 
 def poll_queue(
@@ -68,30 +100,32 @@ def poll_queue(
     queue_url: str,
     handlers: dict[str, Callable[[dict[str, Any]], None]],
 ) -> None:
-    response = client.receive_message(
-        QueueUrl=queue_url,
-        MaxNumberOfMessages=5,
-        WaitTimeSeconds=10,
-    )
-    messages = response.get("Messages", [])
-    for message in messages:
-        receipt_handle = message["ReceiptHandle"]
-        body = message.get("Body", "{}")
-        payload: dict[str, Any] = json.loads(body)
-        event = str(payload.get("event", ""))
+    with traced_span("worker.poll_queue", {"queue.url": queue_url}):
+        response = client.receive_message(
+            QueueUrl=queue_url,
+            MaxNumberOfMessages=5,
+            WaitTimeSeconds=10,
+        )
+        messages = response.get("Messages", [])
+        for message in messages:
+            receipt_handle = message["ReceiptHandle"]
+            body = message.get("Body", "{}")
+            payload: dict[str, Any] = json.loads(body)
+            event = str(payload.get("event", ""))
 
-        handler = handlers.get(event)
-        if handler:
-            handler(payload)
-        else:
-            logger.warning("No handler for queue event", extra={"event": event})
+            handler = handlers.get(event)
+            if handler:
+                handler(payload)
+            else:
+                logger.warning("No handler for queue event", extra={"event": event})
 
-        client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
+            client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
 
 
 def main() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
+    configure_tracing()
 
     queue_urls = [
         settings.sqs_ai_jobs_queue_url,

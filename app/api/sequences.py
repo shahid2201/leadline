@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import AuthContext
-from app.core.dependencies import get_auth_context
+from app.core.dependencies import get_auth_context, require_admin
 from app.db.session import get_db_session
 from app.queue.sqs import QueueJob, SQSPublisher
 from app.schemas.sequence import (
@@ -17,7 +17,11 @@ from app.schemas.sequence import (
 )
 from app.services.sequence_service import SequenceService
 
-router = APIRouter(prefix="/sequences", tags=["sequences"])
+router = APIRouter(
+    prefix="/sequences",
+    tags=["sequences"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.post("", response_model=SequenceResponse)

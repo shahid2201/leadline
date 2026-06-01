@@ -13,6 +13,7 @@ from app.core.context import AuthContext
 from app.core.security import verify_secret
 from app.db.session import AsyncSessionLocal
 from app.models.api_key import APIKey
+from app.security.rate_limit import rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self.excluded_paths = excluded_paths or {
             "/healthz",
             "/readyz",
+            "/metrics",
             "/docs",
             "/openapi.json",
             "/redoc",
+            "/v1/webhooks/svix",
+            "/v1/webhooks/hubspot",
         }
 
     async def dispatch(
@@ -48,6 +52,18 @@ class AuthMiddleware(BaseHTTPMiddleware):
         context = await self._resolve_context(token)
         if context is None:
             return JSONResponse(status_code=401, content={"detail": "invalid credentials"})
+
+        tenant_header = request.headers.get("X-Tenant-ID")
+        if (
+            tenant_header
+            and self.settings.enforce_tenant_header_match
+            and tenant_header != context.tenant_id
+        ):
+            return JSONResponse(status_code=403, content={"detail": "tenant mismatch"})
+
+        allowed = await rate_limiter.allow(context.tenant_id)
+        if not allowed:
+            return JSONResponse(status_code=429, content={"detail": "rate limit exceeded"})
 
         request.state.auth_context = context
         response = await call_next(request)

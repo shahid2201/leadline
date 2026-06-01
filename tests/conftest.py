@@ -31,13 +31,17 @@ def client() -> Generator[TestClient, None, None]:
         yield test_client
 
 
-def auth_headers(tenant_id: str, user_id: str = "user-1") -> dict[str, str]:
+def auth_headers(
+    tenant_id: str,
+    user_id: str = "user-1",
+    role: str = "admin",
+) -> dict[str, str]:
     settings = get_settings()
     token = jwt.encode(
         {
             "tenant_id": tenant_id,
             "user_id": user_id,
-            "role": "admin",
+            "role": role,
             "scopes": ["read", "write"],
             "aud": settings.jwt_audience,
             "iss": settings.jwt_issuer,

@@ -52,6 +52,48 @@ class Settings(BaseSettings):
     twilio_auth_token: str | None = Field(default=None, alias="TWILIO_AUTH_TOKEN")
     twilio_from_phone: str | None = Field(default=None, alias="TWILIO_FROM_PHONE")
 
+    hubspot_api_base_url: str = Field(
+        default="https://api.hubapi.com",
+        alias="HUBSPOT_API_BASE_URL",
+    )
+    hubspot_access_token: str | None = Field(default=None, alias="HUBSPOT_ACCESS_TOKEN")
+    hubspot_webhook_secret: str | None = Field(default=None, alias="HUBSPOT_WEBHOOK_SECRET")
+
+    google_calendar_api_base_url: str = Field(
+        default="https://www.googleapis.com/calendar/v3",
+        alias="GOOGLE_CALENDAR_API_BASE_URL",
+    )
+    google_calendar_access_token: str | None = Field(
+        default=None,
+        alias="GOOGLE_CALENDAR_ACCESS_TOKEN",
+    )
+
+    slack_webhook_url: str | None = Field(default=None, alias="SLACK_WEBHOOK_URL")
+    slack_signing_secret: str | None = Field(default=None, alias="SLACK_SIGNING_SECRET")
+
+    svix_server_url: str = Field(default="https://api.svix.com", alias="SVIX_SERVER_URL")
+    svix_token: str | None = Field(default=None, alias="SVIX_TOKEN")
+    svix_app_id: str | None = Field(default=None, alias="SVIX_APP_ID")
+    svix_webhook_secret: str | None = Field(default=None, alias="SVIX_WEBHOOK_SECRET")
+
+    integration_max_retries: int = Field(default=3, alias="INTEGRATION_MAX_RETRIES")
+
+    otel_enabled: bool = Field(default=True, alias="OTEL_ENABLED")
+    otel_service_name: str = Field(default="leadline-api", alias="OTEL_SERVICE_NAME")
+    otel_exporter_otlp_endpoint: str | None = Field(
+        default=None,
+        alias="OTEL_EXPORTER_OTLP_ENDPOINT",
+    )
+
+    rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+    rate_limit_per_minute: int = Field(default=120, alias="RATE_LIMIT_PER_MINUTE")
+
+    audit_log_enabled: bool = Field(default=True, alias="AUDIT_LOG_ENABLED")
+    pii_masking_enabled: bool = Field(default=True, alias="PII_MASKING_ENABLED")
+
+    app_data_encryption_key: str | None = Field(default=None, alias="APP_DATA_ENCRYPTION_KEY")
+    enforce_tenant_header_match: bool = Field(default=True, alias="ENFORCE_TENANT_HEADER_MATCH")
+
     auto_create_tables: bool = Field(default=False, alias="AUTO_CREATE_TABLES")
 
 

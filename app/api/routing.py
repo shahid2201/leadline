@@ -2,12 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import AuthContext
-from app.core.dependencies import get_auth_context
+from app.core.dependencies import get_auth_context, require_admin
 from app.db.session import get_db_session
 from app.schemas.routing import RoutingRuleCreate, RoutingRuleResponse, RoutingRuleUpdate
 from app.services.routing_service import RoutingService
 
-router = APIRouter(prefix="/routing/rules", tags=["routing"])
+router = APIRouter(
+    prefix="/routing/rules",
+    tags=["routing"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.post("", response_model=RoutingRuleResponse)

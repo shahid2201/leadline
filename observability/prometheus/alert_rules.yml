@@ -1,0 +1,45 @@
+groups:
+  - name: leadline-alerts
+    rules:
+      - alert: ApiErrorRateHigh
+        expr: |
+          sum(rate(leadline_api_requests_total{status_code=~"5.."}[5m]))
+          /
+          sum(rate(leadline_api_requests_total[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 5xx error rate is above 5%"
+
+      - alert: ApiLatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(leadline_api_request_latency_ms_bucket[5m])) by (le)) > 800
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency is above 800ms"
+
+      - alert: QueuePublishFailures
+        expr: sum(rate(leadline_queue_publish_total{outcome="skipped"}[10m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queue publish is being skipped"
+
+      - alert: AIFallbackSpike
+        expr: sum(rate(leadline_ai_calls_total{outcome=~"fallback.*"}[10m])) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI fallback rate is elevated"
+
+      - alert: HighIntentLeadsDropped
+        expr: sum(rate(leadline_business_kpi_events_total{event="lead_created"}[1h])) < 0.01
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: "Lead creation KPI is near zero"
