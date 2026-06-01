@@ -50,6 +50,10 @@ This repository contains the Phase 1 to Phase 7 foundation for Lead Line:
 
    http://localhost:8000/docs
 
+4. Read the repository API reference:
+
+   docs/api-reference.md
+
 ## Local development (without Docker)
 
 1. Create a virtual environment.
