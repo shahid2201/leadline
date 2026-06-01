@@ -1,6 +1,6 @@
-# Lead Line Backend - Phase 1 Foundations
+# Lead Line Backend - Phases 1 to 4
 
-This repository contains the Phase 1 and Phase 2 foundation for Lead Line:
+This repository contains the Phase 1 to Phase 4 foundation for Lead Line:
 
 - FastAPI backend scaffold
 - Multi-tenant auth middleware (API key or JWT)
@@ -14,6 +14,10 @@ This repository contains the Phase 1 and Phase 2 foundation for Lead Line:
 - Async message analysis pipeline for intent/entities/sentiment/urgency
 - Initial lead scoring from AI understanding and engagement context
 - Redis cache for idempotent AI results
+- Routing rules CRUD and deterministic routing evaluation engine
+- Sequence CRUD, step management, and enrollment APIs
+- Worker-driven sequence execution with timeline recording
+- SES and Twilio delivery integration adapters
 - Docker local environment
 - CI pipeline (lint + tests)
 
@@ -107,3 +111,21 @@ If SQS queue URLs are not configured, message publishing and worker polling beco
    - `fit_score`, `engagement_score`, `lead_score`
 - Results are cached in Redis by:
    - `(tenant_id, message_id, prompt_version, model)`
+
+## Phase 4 routing and sequences
+
+- Routing rules APIs:
+   - `GET/POST/PATCH/DELETE /v1/routing/rules`
+- Sequence APIs:
+   - `GET/POST/PATCH/DELETE /v1/sequences`
+   - `GET/POST/PATCH/DELETE /v1/sequences/{id}/steps`
+   - `POST /v1/sequences/{id}/enroll`
+- Lifecycle events (`lead.created`, `lead.updated`, `lead.score_updated`) trigger routing evaluation and sequence enrollment through worker queues.
+- Routing actions supported:
+   - `assign_user` -> `owner_user_id`
+   - `assign_team` -> `assigned_team_id`
+   - `queue` -> `assigned_queue_name`
+- Sequence step execution supports `email`, `sms`, `wait`, and `task` types.
+- Delivery integrations:
+   - Amazon SES for email (`SES_FROM_EMAIL`)
+   - Twilio for SMS (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_PHONE`)

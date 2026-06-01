@@ -31,7 +31,11 @@ class SequenceRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_active_sequences_by_trigger(self, tenant_id: str, trigger: str) -> list[Sequence]:
+    async def list_active_sequences_by_trigger(
+        self,
+        tenant_id: str,
+        trigger: str,
+    ) -> list[Sequence]:
         stmt = (
             select(Sequence)
             .where(
