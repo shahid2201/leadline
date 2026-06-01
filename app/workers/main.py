@@ -11,7 +11,9 @@ from botocore.client import BaseClient
 from app.ai.pipeline import process_message_created_event
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.db.session import AsyncSessionLocal
 from app.integrations.pipeline import process_integration_event
+from app.models.failed_job import FailedJob
 from app.observability.tracing import configure_tracing, traced_span
 from app.routing.pipeline import process_routing_event
 from app.sequence.pipeline import process_sequence_step_event, process_sequence_trigger_event
@@ -95,6 +97,32 @@ def handle_integration_timeline_created(payload: dict[str, Any]) -> None:
         asyncio.run(process_integration_event(payload))
 
 
+_MAX_RETRIES = 3
+
+
+async def _save_failed_job(
+    queue_name: str,
+    event_type: str,
+    payload: dict[str, Any],
+    error: str,
+    attempts: int,
+) -> None:
+    tenant_id: str | None = payload.get("tenant_id")  # type: ignore[assignment]
+    async with AsyncSessionLocal() as db:
+        db.add(
+            FailedJob(
+                queue_name=queue_name,
+                event_type=event_type,
+                payload=payload,
+                error=error[:4000],
+                attempts=attempts,
+                status="pending",
+                tenant_id=tenant_id,
+            )
+        )
+        await db.commit()
+
+
 def poll_queue(
     client: BaseClient,
     queue_url: str,
@@ -105,6 +133,7 @@ def poll_queue(
             QueueUrl=queue_url,
             MaxNumberOfMessages=5,
             WaitTimeSeconds=10,
+            AttributeNames=["ApproximateReceiveCount"],
         )
         messages = response.get("Messages", [])
         for message in messages:
@@ -112,10 +141,34 @@ def poll_queue(
             body = message.get("Body", "{}")
             payload: dict[str, Any] = json.loads(body)
             event = str(payload.get("event", ""))
+            attrs = message.get("Attributes", {})
+            receive_count = int(attrs.get("ApproximateReceiveCount", 1))
 
             handler = handlers.get(event)
             if handler:
-                handler(payload)
+                try:
+                    handler(payload)
+                except Exception as exc:  # noqa: BLE001
+                    logger.exception(
+                        "Worker handler failed",
+                        extra={"event": event, "attempt": receive_count},
+                    )
+                    if receive_count >= _MAX_RETRIES:
+                        # Exceeded retries — move to DLQ table and delete from queue
+                        asyncio.run(
+                            _save_failed_job(
+                                queue_name=queue_url.split("/")[-1],
+                                event_type=event,
+                                payload=payload,
+                                error=str(exc),
+                                attempts=receive_count,
+                            )
+                        )
+                        client.delete_message(
+                            QueueUrl=queue_url, ReceiptHandle=receipt_handle
+                        )
+                    # else: do NOT delete — SQS will redeliver with backoff
+                    continue
             else:
                 logger.warning("No handler for queue event", extra={"event": event})
 

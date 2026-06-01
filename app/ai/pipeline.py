@@ -8,6 +8,7 @@ from app.models.lead_timeline_event import LeadTimelineEvent
 from app.models.message import Message
 from app.models.session import Session
 from app.queue.sqs import QueueJob, SQSPublisher
+from app.services.usage_tracking_service import UsageTrackingService
 
 
 async def process_message_created_event(payload: dict[str, str]) -> None:
@@ -42,6 +43,13 @@ async def process_message_created_event(payload: dict[str, str]) -> None:
         message.sentiment = understanding.sentiment
         message.urgency = understanding.urgency
         message.topics = understanding.topics
+
+        usage_service = UsageTrackingService(db)
+        await usage_service.increment(
+            tenant_id,
+            ai_tokens_used=understanding.tokens_used,
+            messages_sent=1,
+        )
 
         session_stmt = select(Session).where(
             Session.id == session_id,

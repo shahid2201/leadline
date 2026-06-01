@@ -9,6 +9,7 @@ from app.repositories.sequence_repository import (
     SequenceRepository,
     SequenceStepRepository,
 )
+from app.services.usage_tracking_service import UsageTrackingService
 
 
 async def process_sequence_trigger_event(payload: dict[str, str]) -> None:
@@ -91,12 +92,18 @@ async def process_sequence_step_event(payload: dict[str, str]) -> None:
             return
 
         step = ordered_steps[current_idx]
-        await _execute_step(
+        delivered = await _execute_step(
             delivery=delivery,
             lead=lead,
             step_type=step.type,
             template=step.template,
         )
+
+        usage_service = UsageTrackingService(db)
+        if delivered == "email":
+            await usage_service.increment(tenant_id, emails_sent=1)
+        elif delivered == "sms":
+            await usage_service.increment(tenant_id, sms_sent=1)
 
         db.add(
             LeadTimelineEvent(
@@ -135,13 +142,15 @@ async def _execute_step(
     lead: Lead,
     step_type: str,
     template: str | None,
-) -> None:
+) -> str | None:
+    """Execute the step and return a delivery type token (email|sms|None)."""
     content = template or ""
     if step_type == "email" and lead.email:
         delivery.send_email(to_email=lead.email, subject="Lead Line follow-up", body=content)
+        return "email"
     elif step_type == "sms" and lead.phone:
         delivery.send_sms(to_phone=lead.phone, body=content)
-    elif step_type == "wait":
-        return
-    elif step_type == "task":
-        return
+        return "sms"
+    elif step_type in {"wait", "task"}:
+        return None
+    return None

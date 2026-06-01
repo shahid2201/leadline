@@ -88,7 +88,9 @@ class AIOrchestrator:
                 )
                 text = response.choices[0].message.content or "{}"
                 parsed = json.loads(text)
+                tokens = response.usage.total_tokens if response.usage else 0
                 if isinstance(parsed, dict):
+                    parsed["tokens_used"] = tokens
                     return parsed
                 ai_calls_total.labels(model=model, outcome="fallback_parse").inc()
                 return self._fallback_analysis(content)

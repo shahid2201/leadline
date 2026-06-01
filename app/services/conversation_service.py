@@ -7,6 +7,7 @@ from app.models.session import Session
 from app.repositories.conversation_repository import MessageRepository, SessionRepository
 from app.repositories.lead_repository import LeadRepository
 from app.services.plan_limit_service import PlanLimitService
+from app.services.usage_tracking_service import UsageTrackingService
 
 
 class ConversationService:
@@ -16,6 +17,7 @@ class ConversationService:
         self.messages = MessageRepository(db)
         self.leads = LeadRepository(db)
         self.plan_limits = PlanLimitService(db)
+        self.usage = UsageTrackingService(db)
 
     async def create_session(self, tenant_id: str, payload: dict[str, Any]) -> Session:
         await self.plan_limits.enforce_session_creation_limit(tenant_id)
@@ -23,6 +25,7 @@ class ConversationService:
         if "metadata" in data:
             data["session_metadata"] = data.pop("metadata")
         record = await self.sessions.create(tenant_id=tenant_id, data=data)
+        await self.usage.increment(tenant_id, sessions_created=1)
         await self.db.commit()
         return record
 

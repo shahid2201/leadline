@@ -11,6 +11,7 @@ class MessageUnderstanding:
     topics: list[str]
     model: str
     prompt_version: str
+    tokens_used: int = 0
 
 
 def sanitize_understanding(
@@ -36,6 +37,8 @@ def sanitize_understanding(
 
     intent = str(raw.get("intent", "unknown")).strip().lower() or "unknown"
 
+    tokens_used = int(raw.get("tokens_used", 0))
+
     return MessageUnderstanding(
         intent=intent,
         entities=entities,
@@ -44,4 +47,5 @@ def sanitize_understanding(
         topics=topics,
         model=model,
         prompt_version=prompt_version,
+        tokens_used=tokens_used,
     )

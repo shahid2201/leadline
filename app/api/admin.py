@@ -1,21 +1,31 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import AuthContext
 from app.core.dependencies import require_admin
 from app.db.session import get_db_session
+from app.models.failed_job import FailedJob
+from app.queue.sqs import QueueJob, SQSPublisher
 from app.repositories.tenant_repository import TenantRepository
 from app.schemas.admin import (
     DesignPartnerEnrollmentRequest,
     DesignPartnerEnrollmentResponse,
+    DLQListResponse,
+    DLQReplayResponse,
+    FailedJobResponse,
     PlanLimitSnapshotResponse,
     ProvisionTenantRequest,
     ProvisionTenantResponse,
     RolloutPromotionRequest,
     RolloutPromotionResponse,
+    UsageSummaryResponse,
 )
 from app.services.plan_limit_service import PlanLimitService
 from app.services.provisioning_service import ProvisioningService
+from app.services.usage_tracking_service import UsageTrackingService
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -99,3 +109,78 @@ async def promote_rollout(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return RolloutPromotionResponse(tenant_id=tenant_id, rollout_percentage=rollout_percentage)
+
+
+@router.get("/tenants/{tenant_id}/usage", response_model=UsageSummaryResponse)
+async def get_tenant_usage(
+    tenant_id: str,
+    days: int = Query(default=30, ge=1, le=365),
+    auth: AuthContext = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> UsageSummaryResponse:
+    _ = auth
+    repo = TenantRepository(db)
+    tenant = await repo.get(tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tenant not found")
+    usage_service = UsageTrackingService(db)
+    records = await usage_service.get_summary(tenant_id=tenant_id, days=days)
+    return UsageSummaryResponse(
+        tenant_id=tenant_id,
+        days=days,
+        records=records,  # type: ignore[arg-type]
+    )
+
+
+@router.get("/dlq", response_model=DLQListResponse)
+async def list_dlq_jobs(
+    auth: AuthContext = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+    queue_name: str | None = Query(default=None),
+) -> DLQListResponse:
+    _ = auth
+    stmt = select(FailedJob).where(FailedJob.status == "pending")
+    if queue_name:
+        stmt = stmt.where(FailedJob.queue_name == queue_name)
+    stmt = stmt.order_by(FailedJob.created_at.desc()).limit(100)
+    result = await db.execute(stmt)
+    jobs = list(result.scalars().all())
+    job_responses = [
+        FailedJobResponse(
+            id=j.id,
+            queue_name=j.queue_name,
+            event_type=j.event_type,
+            error=j.error,
+            attempts=j.attempts,
+            status=j.status,
+            tenant_id=j.tenant_id,
+            created_at=j.created_at.isoformat(),
+        )
+        for j in jobs
+    ]
+    return DLQListResponse(total=len(job_responses), jobs=job_responses)
+
+
+@router.post("/dlq/{job_id}/replay", response_model=DLQReplayResponse)
+async def replay_dlq_job(
+    job_id: str,
+    auth: AuthContext = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> DLQReplayResponse:
+    _ = auth
+    stmt = select(FailedJob).where(FailedJob.id == job_id)
+    result = await db.execute(stmt)
+    job = result.scalar_one_or_none()
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="job not found")
+
+    publisher = SQSPublisher()
+    publisher.publish(
+        QueueJob(queue_name=job.queue_name, payload=job.payload)
+    )
+
+    job.status = "replayed"
+    job.replayed_at = datetime.now(UTC)
+    await db.commit()
+    return DLQReplayResponse(job_id=job_id, replayed=True)
+

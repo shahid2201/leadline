@@ -11,6 +11,7 @@ from app.observability.tracing import traced_span
 from app.queue.sqs import QueueJob, SQSPublisher
 from app.repositories.lead_repository import LeadRepository, LeadTimelineRepository
 from app.services.plan_limit_service import PlanLimitService
+from app.services.usage_tracking_service import UsageTrackingService
 
 
 def _normalize_email(email: str | None) -> str | None:
@@ -39,6 +40,7 @@ class LeadService:
         self.timeline = LeadTimelineRepository(db)
         self.plan_limits = PlanLimitService(db)
         self.publisher = SQSPublisher()
+        self.usage = UsageTrackingService(db)
 
     def _publish_lifecycle(self, tenant_id: str, lead_id: str, event: str) -> None:
         self.publisher.publish(
@@ -100,6 +102,7 @@ class LeadService:
                 lead_id=lead.id,
                 data={"type": "lead_created", "payload": {"source": "api"}},
             )
+            await self.usage.increment(tenant_id, leads_created=1)
             await self.db.commit()
             self._publish_lifecycle(tenant_id=tenant_id, lead_id=lead.id, event="lead.created")
             business_kpi_events_total.labels(event="lead_created", tenant_id=tenant_id).inc()

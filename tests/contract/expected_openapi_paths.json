@@ -8,5 +8,8 @@
   "/v1/sequences",
   "/v1/integrations/calendar/bookings",
   "/v1/webhooks/svix",
-  "/v1/admin/provision"
+  "/v1/admin/provision",
+  "/v1/admin/tenants/{tenant_id}/usage",
+  "/v1/admin/dlq",
+  "/v1/admin/dlq/{job_id}/replay"
 ]

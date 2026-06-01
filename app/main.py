@@ -28,6 +28,7 @@ from app.middleware.auth import AuthMiddleware
 from app.models import (  # noqa: F401
     APIKey,
     AuditLog,
+    FailedJob,
     IntegrationConnection,
     Lead,
     LeadTimelineEvent,
@@ -38,6 +39,7 @@ from app.models import (  # noqa: F401
     SequenceStep,
     Session,
     Tenant,
+    UsageRecord,
     User,
     WebhookEvent,
 )
